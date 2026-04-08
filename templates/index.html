@@ -3,69 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Temp OTP & Mail</title>
+    <title>Advanced Temp Mail</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background: #2c2f33; color: white; }
-        .container { max-width: 600px; margin: auto; background: #23272a; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        input { padding: 15px; width: 75%; font-size: 18px; text-align: center; margin-bottom: 20px; border-radius: 5px; border: none; background: #eeeeee; color: #333; font-weight: bold;}
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #7289da; color: white; border: none; border-radius: 5px; margin: 5px; transition: 0.2s;}
-        button:hover { background: #5b6eae; }
-        .remove-btn { background: #ed4245; }
-        .remove-btn:hover { background: #c03537; }
-        .inbox { margin-top: 30px; text-align: left; background: #2c2f33; padding: 15px; border-radius: 5px;}
-        .message { border-bottom: 1px solid #444; padding: 15px 0; cursor: pointer; transition: 0.2s;}
-        .message:hover { background: #3a3e45; padding-left: 10px;}
-        #message-content { margin-top: 20px; padding: 20px; background: #ffffff; color: #000; border-radius: 5px; display: none; text-align: left; overflow-x: auto;}
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin: 0; padding: 20px; background: #1e1e2e; color: #cdd6f4; }
+        .container { max-width: 800px; margin: auto; background: #181825; padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h1 { margin-top: 0; color: #b4befe; }
+        
+        /* Input & Buttons */
+        .input-group { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
+        input { padding: 12px; font-size: 16px; border-radius: 6px; border: 1px solid #45475a; background: #313244; color: #cdd6f4; outline: none; }
+        .email-input { width: 60%; font-weight: bold; text-align: center; }
+        .pass-input { width: 30%; text-align: center; font-size: 14px; }
+        
+        button { padding: 10px 15px; font-size: 14px; cursor: pointer; font-weight: bold; background: #89b4fa; color: #11111b; border: none; border-radius: 6px; transition: 0.2s; }
+        button:hover { background: #74c7ec; }
+        .danger-btn { background: #f38ba8; color: #11111b; }
+        .danger-btn:hover { background: #eba0ac; }
+        
+        /* Panels */
+        .controls { margin-top: 15px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+        .section-box { background: #313244; padding: 15px; border-radius: 8px; margin-top: 20px; text-align: left; }
+        
+        /* Saved Accounts */
+        .saved-list { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+        .saved-item { display: flex; justify-content: space-between; align-items: center; background: #45475a; padding: 10px; border-radius: 5px; cursor: pointer; }
+        .saved-item:hover { background: #585b70; }
+        
+        /* Login Form */
+        #login-panel { display: none; margin-top: 20px; background: #45475a; padding: 15px; border-radius: 8px; }
+        
+        /* Inbox */
+        .message { border-left: 4px solid #89b4fa; background: #1e1e2e; padding: 15px; margin-top: 10px; border-radius: 5px; cursor: pointer; transition: 0.2s; }
+        .message:hover { background: #45475a; }
+        #message-content { margin-top: 20px; padding: 20px; background: #cdd6f4; color: #11111b; border-radius: 8px; display: none; overflow-x: auto; }
+        
+        /* Modal (Dialog Box) */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 1000; }
+        .modal { background: #181825; padding: 25px; border-radius: 10px; width: 350px; text-align: center; border: 1px solid #45475a; }
+        .modal-buttons { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
     </style>
 </head>
 <body>
+
     <div class="container">
-        <h1>TempMail OTP</h1>
-        <p>Your temporary, always-available email address:</p>
+        <h1>Advanced TempMail</h1>
+        <p>Active Address & Password (Save password to login later)</p>
         
-        <div>
-            <input type="text" id="email-address" readonly placeholder="Generating secure email...">
+        <div class="input-group">
+            <input type="text" id="email-address" class="email-input" readonly placeholder="Connecting...">
+            <button id="copy-mail-btn" onclick="copyData('email-address', 'copy-mail-btn')">Copy Mail</button>
+        </div>
+        <div class="input-group">
+            <input type="text" id="email-password" class="pass-input" readonly placeholder="Password...">
+            <button id="copy-pass-btn" onclick="copyData('email-password', 'copy-pass-btn')">Copy Pass</button>
         </div>
         
-        <button onclick="fetchEmails()">Refresh Inbox</button>
-        <button class="remove-btn" onclick="generateEmail()">Remove & Get New</button>
-
-        <div class="inbox" id="inbox">
-            <h3>Inbox <span style="font-size: 12px; color: #aaa;">(Auto-refreshes every 10s)</span></h3>
-            <div id="messages-list">Waiting for incoming emails...</div>
+        <div class="controls">
+            <button onclick="fetchEmails()">🔄 Refresh Inbox</button>
+            <button onclick="promptNewEmail()">➕ Get New Email</button>
+            <button onclick="toggleLoginPanel()">🔑 Login to Old Mail</button>
         </div>
 
-        <div id="message-content"></div>
+        <div id="login-panel">
+            <h3>Login to Existing Account</h3>
+            <div class="input-group">
+                <input type="text" id="login-email" placeholder="Email Address">
+                <input type="text" id="login-pass" placeholder="Password">
+                <button onclick="loginAccount()">Login</button>
+            </div>
+            <p id="login-error" style="color: #f38ba8; font-size: 14px;"></p>
+        </div>
+
+        <div class="section-box">
+            <h3>Saved Inboxes <span style="font-size: 12px; color: #a6adc8;">(Stored in browser)</span></h3>
+            <div class="saved-list" id="saved-list">
+                </div>
+        </div>
+
+        <div class="section-box">
+            <h3>Inbox <span style="font-size: 12px; color: #a6adc8;">(Auto-refreshes every 10s)</span></h3>
+            <div id="messages-list">Waiting for connection...</div>
+        </div>
+
+        <div id="message-content" style="text-align: left;"></div>
+    </div>
+
+    <div class="modal-overlay" id="custom-modal">
+        <div class="modal">
+            <h3>Action Required</h3>
+            <p>You are about to generate a new email. Do you want to save the current one to your saved list, or discard it?</p>
+            <div class="modal-buttons">
+                <button onclick="confirmNewEmail('save')">Save Current & Get New</button>
+                <button class="danger-btn" onclick="confirmNewEmail('discard')">Discard Current & Get New</button>
+                <button style="background: #45475a; color: white;" onclick="closeModal()">Cancel</button>
+            </div>
+        </div>
     </div>
 
     <script>
         let currentEmail = "";
+        let currentPassword = "";
         let currentToken = "";
         let refreshInterval;
 
-        // Automatically fetches a new account token via our Python backend
-        async function generateEmail() {
-            document.getElementById('email-address').value = "Connecting to mail server...";
-            document.getElementById('messages-list').innerHTML = "Waiting for incoming emails...";
-            document.getElementById('message-content').style.display = "none";
+        // Initialize: Load last active account or generate a new one
+        window.onload = () => {
+            renderSavedAccounts();
+            const lastActive = localStorage.getItem('lastActiveMail');
+            if (lastActive) {
+                const acc = JSON.parse(lastActive);
+                setSessionData(acc.email, acc.password, acc.token);
+            } else {
+                generateNewEmail();
+            }
+        };
 
+        function setSessionData(email, password, token) {
+            currentEmail = email;
+            currentPassword = password;
+            currentToken = token;
+            
+            document.getElementById('email-address').value = email;
+            document.getElementById('email-password').value = password;
+            
+            // Save as last active
+            localStorage.setItem('lastActiveMail', JSON.stringify({email, password, token}));
+
+            document.getElementById('messages-list').innerHTML = "Checking inbox...";
+            document.getElementById('message-content').style.display = "none";
+            
+            if (refreshInterval) clearInterval(refreshInterval);
+            refreshInterval = setInterval(fetchEmails, 10000); 
+            fetchEmails();
+        }
+
+        // --- Core API Functions ---
+
+        async function generateNewEmail() {
+            document.getElementById('email-address').value = "Generating secure email...";
+            document.getElementById('email-password').value = "";
+            
             try {
                 const response = await fetch('/api/generate');
                 const data = await response.json();
+                if (data.error) throw new Error(data.error);
+                setSessionData(data.email, data.password, data.token);
+            } catch (error) {
+                alert("Generation Error: " + error.message);
+            }
+        }
+
+        async function loginAccount() {
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-pass').value;
+            const errLabel = document.getElementById('login-error');
+            
+            if(!email || !pass) return;
+            errLabel.innerText = "Logging in...";
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({address: email, password: pass})
+                });
+                const data = await response.json();
                 
                 if (data.error) throw new Error(data.error);
-
-                currentEmail = data.email;
-                currentToken = data.token;
-                document.getElementById('email-address').value = currentEmail;
-
-                // Start checking inbox every 10 seconds
-                if (refreshInterval) clearInterval(refreshInterval);
-                refreshInterval = setInterval(fetchEmails, 10000); 
-                fetchEmails();
+                
+                setSessionData(data.email, data.password, data.token);
+                saveCurrentAccount(); // Auto-save on successful login
+                errLabel.innerText = "";
+                toggleLoginPanel(); // Hide panel
             } catch (error) {
-                console.error("Generation Error:", error);
-                document.getElementById('email-address').value = "Error generating email. Try again.";
+                errLabel.innerText = error.message;
             }
         }
 
@@ -74,7 +185,6 @@
             try {
                 const response = await fetch(`/api/messages?token=${currentToken}`);
                 const messages = await response.json();
-                
                 if (messages.error) throw new Error(messages.error);
 
                 const list = document.getElementById('messages-list');
@@ -100,25 +210,103 @@
             try {
                 const response = await fetch(`/api/read?token=${currentToken}&id=${id}`);
                 const msg = await response.json();
-                
                 if (msg.error) throw new Error(msg.error);
 
                 const contentDiv = document.getElementById('message-content');
                 contentDiv.style.display = "block";
-                
-                // Format the timestamp nicely
                 const dateObj = new Date(msg.date);
-                const timeString = dateObj.toLocaleString();
-
                 const bodyContent = msg.htmlBody ? msg.htmlBody : `<pre>${msg.textBody}</pre>`;
-                contentDiv.innerHTML = `<h4>${msg.subject}</h4><p><b>From:</b> ${msg.from}</p><p><b>Received:</b> ${timeString}</p><hr>${bodyContent}`;
+                
+                contentDiv.innerHTML = `<h4>${msg.subject}</h4><p><b>From:</b> ${msg.from}</p><p><b>Received:</b> ${dateObj.toLocaleString()}</p><hr>${bodyContent}`;
             } catch (error) {
                 console.error("Read Error:", error);
             }
         }
 
-        // Initialize on page load
-        generateEmail();
+        // --- Utility & UI Functions ---
+
+        function copyData(inputId, btnId) {
+            const input = document.getElementById(inputId);
+            input.select();
+            input.setSelectionRange(0, 99999); // Mobile compatibility
+            navigator.clipboard.writeText(input.value);
+            
+            const btn = document.getElementById(btnId);
+            const originalText = btn.innerText;
+            btn.innerText = "Copied!";
+            setTimeout(() => btn.innerText = originalText, 2000);
+        }
+
+        function toggleLoginPanel() {
+            const panel = document.getElementById('login-panel');
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // --- Modal & Local Storage Logic ---
+
+        function promptNewEmail() {
+            if(!currentEmail) { generateNewEmail(); return; }
+            document.getElementById('custom-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal').style.display = 'none';
+        }
+
+        function confirmNewEmail(action) {
+            if (action === 'save') {
+                saveCurrentAccount();
+            }
+            closeModal();
+            generateNewEmail();
+        }
+
+        function saveCurrentAccount() {
+            if(!currentEmail) return;
+            let saved = JSON.parse(localStorage.getItem('savedMails') || '[]');
+            
+            // Check if already exists
+            if(!saved.some(acc => acc.email === currentEmail)) {
+                saved.push({email: currentEmail, password: currentPassword, token: currentToken});
+                localStorage.setItem('savedMails', JSON.stringify(saved));
+                renderSavedAccounts();
+            }
+        }
+
+        function renderSavedAccounts() {
+            const list = document.getElementById('saved-list');
+            let saved = JSON.parse(localStorage.getItem('savedMails') || '[]');
+            
+            if (saved.length === 0) {
+                list.innerHTML = "<p style='color:#a6adc8; font-size:14px;'>No saved accounts yet.</p>";
+                return;
+            }
+
+            list.innerHTML = "";
+            saved.forEach((acc, index) => {
+                const item = document.createElement('div');
+                item.className = 'saved-item';
+                
+                const txt = document.createElement('span');
+                txt.innerText = acc.email;
+                txt.onclick = () => setSessionData(acc.email, acc.password, acc.token);
+                
+                const delBtn = document.createElement('button');
+                delBtn.className = 'danger-btn';
+                delBtn.innerText = 'X';
+                delBtn.style.padding = '5px 10px';
+                delBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    saved.splice(index, 1);
+                    localStorage.setItem('savedMails', JSON.stringify(saved));
+                    renderSavedAccounts();
+                };
+
+                item.appendChild(txt);
+                item.appendChild(delBtn);
+                list.appendChild(item);
+            });
+        }
     </script>
 </body>
 </html>
