@@ -103,7 +103,7 @@
 
         // Initialize: Check if logged in
         window.onload = async () => {
-            const res = await fetch('/api/auth/status');
+            const res = await fetch('/api/auth/status', { cache: 'no-store' });
             const data = await res.json();
             if (data.logged_in) {
                 initApp();
@@ -147,7 +147,7 @@
             await renderSavedAccounts();
             
             // Try to load the first saved account from the DB, otherwise generate new
-            const res = await fetch('/api/db/accounts');
+            const res = await fetch('/api/db/accounts', { cache: 'no-store' });
             const saved = await res.json();
             if (saved && saved.length > 0) {
                 setSessionData(saved[0].email, saved[0].password, saved[0].token);
@@ -177,7 +177,8 @@
             document.getElementById('email-address').value = "Generating secure email...";
             document.getElementById('email-password').value = "";
             try {
-                const response = await fetch('/api/generate');
+                // Prevent caching the new email generation
+                const response = await fetch('/api/generate', { cache: 'no-store' });
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
                 setSessionData(data.email, data.password, data.token);
@@ -188,7 +189,8 @@
 
         async function fetchEmails() {
             if (!currentToken) return;
-            const response = await fetch(`/api/messages?token=${currentToken}`);
+            // Bypass cache to ensure we see new emails instantly
+            const response = await fetch(`/api/messages?token=${currentToken}`, { cache: 'no-store' });
             const messages = await response.json();
             if (messages.error) return;
 
@@ -208,7 +210,7 @@
         }
 
         async function readMessage(id) {
-            const response = await fetch(`/api/read?token=${currentToken}&id=${id}`);
+            const response = await fetch(`/api/read?token=${currentToken}&id=${id}`, { cache: 'no-store' });
             const msg = await response.json();
             if (msg.error) return;
 
@@ -227,12 +229,13 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({email: currentEmail, password: currentPassword, token: currentToken})
             });
-            renderSavedAccounts();
+            await renderSavedAccounts();
         }
 
         async function renderSavedAccounts() {
             const list = document.getElementById('saved-list');
-            const res = await fetch('/api/db/accounts');
+            // Force browser to bypass cache and fetch the latest DB data
+            const res = await fetch('/api/db/accounts', { cache: 'no-store' });
             const saved = await res.json();
             
             if (saved.length === 0) {
@@ -285,8 +288,10 @@
         function promptNewEmail() { document.getElementById('custom-modal').style.display = 'flex'; }
         function closeModal() { document.getElementById('custom-modal').style.display = 'none'; }
         
-        function confirmNewEmail(action) {
-            if (action === 'save') saveCurrentAccount();
+        async function confirmNewEmail(action) {
+            if (action === 'save') {
+                await saveCurrentAccount(); 
+            }
             closeModal();
             generateNewEmail();
         }
