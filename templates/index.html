@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Temp Mail</title>
+    <title>Private Temp Mail</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin: 0; padding: 20px; background: #1e1e2e; color: #cdd6f4; }
-        .container { max-width: 800px; margin: auto; background: #181825; padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .container { max-width: 800px; margin: auto; background: #181825; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         h1 { margin-top: 0; color: #b4befe; }
         
-        /* Input & Buttons */
         .input-group { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
         input { padding: 12px; font-size: 16px; border-radius: 6px; border: 1px solid #45475a; background: #313244; color: #cdd6f4; outline: none; }
         .email-input { width: 60%; font-weight: bold; text-align: center; }
@@ -20,24 +19,21 @@
         .danger-btn { background: #f38ba8; color: #11111b; }
         .danger-btn:hover { background: #eba0ac; }
         
-        /* Panels */
         .controls { margin-top: 15px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
         .section-box { background: #313244; padding: 15px; border-radius: 8px; margin-top: 20px; text-align: left; }
         
-        /* Saved Accounts */
         .saved-list { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
         .saved-item { display: flex; justify-content: space-between; align-items: center; background: #45475a; padding: 10px; border-radius: 5px; cursor: pointer; }
         .saved-item:hover { background: #585b70; }
         
-        /* Login Form */
-        #login-panel { display: none; margin-top: 20px; background: #45475a; padding: 15px; border-radius: 8px; }
-        
-        /* Inbox */
         .message { border-left: 4px solid #89b4fa; background: #1e1e2e; padding: 15px; margin-top: 10px; border-radius: 5px; cursor: pointer; transition: 0.2s; }
         .message:hover { background: #45475a; }
         #message-content { margin-top: 20px; padding: 20px; background: #cdd6f4; color: #11111b; border-radius: 8px; display: none; overflow-x: auto; }
         
-        /* Modal (Dialog Box) */
+        #admin-login-container { max-width: 400px; margin: 100px auto; background: #181825; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        #admin-login-container input { width: 90%; margin-bottom: 15px; text-align: left; }
+        #admin-login-container button { width: 97%; padding: 12px; font-size: 16px; margin-top: 10px; }
+        
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 1000; }
         .modal { background: #181825; padding: 25px; border-radius: 10px; width: 350px; text-align: center; border: 1px solid #45475a; }
         .modal-buttons { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
@@ -45,9 +41,17 @@
 </head>
 <body>
 
-    <div class="container">
-        <h1>Advanced TempMail</h1>
-        <p>Active Address & Password (Save password to login later)</p>
+    <div id="admin-login-container" style="display: none;">
+        <h2>Admin Login</h2>
+        <input type="text" id="admin-uname" placeholder="Username">
+        <input type="password" id="admin-pass" placeholder="Password">
+        <button onclick="adminLogin()">Login</button>
+        <p id="login-error" style="color: #f38ba8; margin-top: 15px; font-size: 14px;"></p>
+    </div>
+
+    <div class="container" id="app-container" style="display: none;">
+        <h1>Private TempMail</h1>
+        <p>Active Database Connection: Secure</p>
         
         <div class="input-group">
             <input type="text" id="email-address" class="email-input" readonly placeholder="Connecting...">
@@ -61,23 +65,14 @@
         <div class="controls">
             <button onclick="fetchEmails()">🔄 Refresh Inbox</button>
             <button onclick="promptNewEmail()">➕ Get New Email</button>
-            <button onclick="toggleLoginPanel()">🔑 Login to Old Mail</button>
-        </div>
-
-        <div id="login-panel">
-            <h3>Login to Existing Account</h3>
-            <div class="input-group">
-                <input type="text" id="login-email" placeholder="Email Address">
-                <input type="text" id="login-pass" placeholder="Password">
-                <button onclick="loginAccount()">Login</button>
-            </div>
-            <p id="login-error" style="color: #f38ba8; font-size: 14px;"></p>
+            <button class="danger-btn" onclick="adminLogout()">🚪 Logout</button>
         </div>
 
         <div class="section-box">
-            <h3>Saved Inboxes <span style="font-size: 12px; color: #a6adc8;">(Stored in browser)</span></h3>
+            <h3>MongoDB Saved Inboxes</h3>
             <div class="saved-list" id="saved-list">
-                </div>
+                Loading database...
+            </div>
         </div>
 
         <div class="section-box">
@@ -91,9 +86,9 @@
     <div class="modal-overlay" id="custom-modal">
         <div class="modal">
             <h3>Action Required</h3>
-            <p>You are about to generate a new email. Do you want to save the current one to your saved list, or discard it?</p>
+            <p>Do you want to save the current email to MongoDB before generating a new one?</p>
             <div class="modal-buttons">
-                <button onclick="confirmNewEmail('save')">Save Current & Get New</button>
+                <button onclick="confirmNewEmail('save')">Save to DB & Get New</button>
                 <button class="danger-btn" onclick="confirmNewEmail('discard')">Discard Current & Get New</button>
                 <button style="background: #45475a; color: white;" onclick="closeModal()">Cancel</button>
             </div>
@@ -106,17 +101,60 @@
         let currentToken = "";
         let refreshInterval;
 
-        // Initialize: Load last active account or generate a new one
-        window.onload = () => {
-            renderSavedAccounts();
-            const lastActive = localStorage.getItem('lastActiveMail');
-            if (lastActive) {
-                const acc = JSON.parse(lastActive);
-                setSessionData(acc.email, acc.password, acc.token);
+        // Initialize: Check if logged in
+        window.onload = async () => {
+            const res = await fetch('/api/auth/status');
+            const data = await res.json();
+            if (data.logged_in) {
+                initApp();
+            } else {
+                document.getElementById('admin-login-container').style.display = 'block';
+            }
+        };
+
+        // --- Auth Functions ---
+
+        async function adminLogin() {
+            const uname = document.getElementById('admin-uname').value;
+            const pass = document.getElementById('admin-pass').value;
+            const err = document.getElementById('login-error');
+            
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: uname, password: pass})
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                err.innerText = "";
+                document.getElementById('admin-login-container').style.display = 'none';
+                initApp();
+            } else {
+                err.innerText = data.error;
+            }
+        }
+
+        async function adminLogout() {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            location.reload();
+        }
+
+        // --- Main App Logic ---
+
+        async function initApp() {
+            document.getElementById('app-container').style.display = 'block';
+            await renderSavedAccounts();
+            
+            // Try to load the first saved account from the DB, otherwise generate new
+            const res = await fetch('/api/db/accounts');
+            const saved = await res.json();
+            if (saved && saved.length > 0) {
+                setSessionData(saved[0].email, saved[0].password, saved[0].token);
             } else {
                 generateNewEmail();
             }
-        };
+        }
 
         function setSessionData(email, password, token) {
             currentEmail = email;
@@ -125,10 +163,6 @@
             
             document.getElementById('email-address').value = email;
             document.getElementById('email-password').value = password;
-            
-            // Save as last active
-            localStorage.setItem('lastActiveMail', JSON.stringify({email, password, token}));
-
             document.getElementById('messages-list').innerHTML = "Checking inbox...";
             document.getElementById('message-content').style.display = "none";
             
@@ -137,153 +171,77 @@
             fetchEmails();
         }
 
-        // --- Core API Functions ---
+        // --- Database & API Functions ---
 
         async function generateNewEmail() {
             document.getElementById('email-address').value = "Generating secure email...";
             document.getElementById('email-password').value = "";
-            
             try {
                 const response = await fetch('/api/generate');
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
                 setSessionData(data.email, data.password, data.token);
             } catch (error) {
-                alert("Generation Error: " + error.message);
-            }
-        }
-
-        async function loginAccount() {
-            const email = document.getElementById('login-email').value;
-            const pass = document.getElementById('login-pass').value;
-            const errLabel = document.getElementById('login-error');
-            
-            if(!email || !pass) return;
-            errLabel.innerText = "Logging in...";
-
-            try {
-                const response = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({address: email, password: pass})
-                });
-                const data = await response.json();
-                
-                if (data.error) throw new Error(data.error);
-                
-                setSessionData(data.email, data.password, data.token);
-                saveCurrentAccount(); // Auto-save on successful login
-                errLabel.innerText = "";
-                toggleLoginPanel(); // Hide panel
-            } catch (error) {
-                errLabel.innerText = error.message;
+                alert("Error: " + error.message);
             }
         }
 
         async function fetchEmails() {
             if (!currentToken) return;
-            try {
-                const response = await fetch(`/api/messages?token=${currentToken}`);
-                const messages = await response.json();
-                if (messages.error) throw new Error(messages.error);
+            const response = await fetch(`/api/messages?token=${currentToken}`);
+            const messages = await response.json();
+            if (messages.error) return;
 
-                const list = document.getElementById('messages-list');
-                if (messages.length === 0) {
-                    list.innerHTML = "No new messages. Waiting for OTP...";
-                    return;
-                }
-
-                list.innerHTML = "";
-                messages.forEach(msg => {
-                    const div = document.createElement('div');
-                    div.className = 'message';
-                    div.innerHTML = `<strong>From:</strong> ${msg.from} <br> <strong>Subject:</strong> ${msg.subject}`;
-                    div.onclick = () => readMessage(msg.id);
-                    list.appendChild(div);
-                });
-            } catch (error) {
-                console.error("Fetch Error:", error);
+            const list = document.getElementById('messages-list');
+            if (messages.length === 0) {
+                list.innerHTML = "No new messages. Waiting for OTP...";
+                return;
             }
+            list.innerHTML = "";
+            messages.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = 'message';
+                div.innerHTML = `<strong>From:</strong> ${msg.from} <br> <strong>Subject:</strong> ${msg.subject}`;
+                div.onclick = () => readMessage(msg.id);
+                list.appendChild(div);
+            });
         }
 
         async function readMessage(id) {
-            try {
-                const response = await fetch(`/api/read?token=${currentToken}&id=${id}`);
-                const msg = await response.json();
-                if (msg.error) throw new Error(msg.error);
+            const response = await fetch(`/api/read?token=${currentToken}&id=${id}`);
+            const msg = await response.json();
+            if (msg.error) return;
 
-                const contentDiv = document.getElementById('message-content');
-                contentDiv.style.display = "block";
-                const dateObj = new Date(msg.date);
-                const bodyContent = msg.htmlBody ? msg.htmlBody : `<pre>${msg.textBody}</pre>`;
-                
-                contentDiv.innerHTML = `<h4>${msg.subject}</h4><p><b>From:</b> ${msg.from}</p><p><b>Received:</b> ${dateObj.toLocaleString()}</p><hr>${bodyContent}`;
-            } catch (error) {
-                console.error("Read Error:", error);
-            }
+            const contentDiv = document.getElementById('message-content');
+            contentDiv.style.display = "block";
+            const bodyContent = msg.htmlBody ? msg.htmlBody : `<pre>${msg.textBody}</pre>`;
+            contentDiv.innerHTML = `<h4>${msg.subject}</h4><p><b>From:</b> ${msg.from}</p><hr>${bodyContent}`;
         }
 
-        // --- Utility & UI Functions ---
+        // --- MongoDB Sync Functions ---
 
-        function copyData(inputId, btnId) {
-            const input = document.getElementById(inputId);
-            input.select();
-            input.setSelectionRange(0, 99999); // Mobile compatibility
-            navigator.clipboard.writeText(input.value);
-            
-            const btn = document.getElementById(btnId);
-            const originalText = btn.innerText;
-            btn.innerText = "Copied!";
-            setTimeout(() => btn.innerText = originalText, 2000);
-        }
-
-        function toggleLoginPanel() {
-            const panel = document.getElementById('login-panel');
-            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
-        }
-
-        // --- Modal & Local Storage Logic ---
-
-        function promptNewEmail() {
-            if(!currentEmail) { generateNewEmail(); return; }
-            document.getElementById('custom-modal').style.display = 'flex';
-        }
-
-        function closeModal() {
-            document.getElementById('custom-modal').style.display = 'none';
-        }
-
-        function confirmNewEmail(action) {
-            if (action === 'save') {
-                saveCurrentAccount();
-            }
-            closeModal();
-            generateNewEmail();
-        }
-
-        function saveCurrentAccount() {
+        async function saveCurrentAccount() {
             if(!currentEmail) return;
-            let saved = JSON.parse(localStorage.getItem('savedMails') || '[]');
-            
-            // Check if already exists
-            if(!saved.some(acc => acc.email === currentEmail)) {
-                saved.push({email: currentEmail, password: currentPassword, token: currentToken});
-                localStorage.setItem('savedMails', JSON.stringify(saved));
-                renderSavedAccounts();
-            }
+            await fetch('/api/db/accounts', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email: currentEmail, password: currentPassword, token: currentToken})
+            });
+            renderSavedAccounts();
         }
 
-        function renderSavedAccounts() {
+        async function renderSavedAccounts() {
             const list = document.getElementById('saved-list');
-            let saved = JSON.parse(localStorage.getItem('savedMails') || '[]');
+            const res = await fetch('/api/db/accounts');
+            const saved = await res.json();
             
             if (saved.length === 0) {
-                list.innerHTML = "<p style='color:#a6adc8; font-size:14px;'>No saved accounts yet.</p>";
+                list.innerHTML = "<p style='color:#a6adc8; font-size:14px;'>No accounts in Database.</p>";
                 return;
             }
 
             list.innerHTML = "";
-            saved.forEach((acc, index) => {
+            saved.forEach((acc) => {
                 const item = document.createElement('div');
                 item.className = 'saved-item';
                 
@@ -295,10 +253,13 @@
                 delBtn.className = 'danger-btn';
                 delBtn.innerText = 'X';
                 delBtn.style.padding = '5px 10px';
-                delBtn.onclick = (e) => {
+                delBtn.onclick = async (e) => {
                     e.stopPropagation();
-                    saved.splice(index, 1);
-                    localStorage.setItem('savedMails', JSON.stringify(saved));
+                    await fetch('/api/db/accounts', {
+                        method: 'DELETE',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({email: acc.email})
+                    });
                     renderSavedAccounts();
                 };
 
@@ -306,6 +267,28 @@
                 item.appendChild(delBtn);
                 list.appendChild(item);
             });
+        }
+
+        // --- UI & Modal Logic ---
+
+        function copyData(inputId, btnId) {
+            const input = document.getElementById(inputId);
+            input.select();
+            input.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(input.value);
+            const btn = document.getElementById(btnId);
+            const originalText = btn.innerText;
+            btn.innerText = "Copied!";
+            setTimeout(() => btn.innerText = originalText, 2000);
+        }
+
+        function promptNewEmail() { document.getElementById('custom-modal').style.display = 'flex'; }
+        function closeModal() { document.getElementById('custom-modal').style.display = 'none'; }
+        
+        function confirmNewEmail(action) {
+            if (action === 'save') saveCurrentAccount();
+            closeModal();
+            generateNewEmail();
         }
     </script>
 </body>
