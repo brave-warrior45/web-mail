@@ -12,6 +12,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'default_cyber_secret_123')
 # MongoDB Connection
 MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/').strip('"').strip("'")
 try:
+    # 5-second timeout to prevent server deployment freezes
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     db = client.tempmail_db
     accounts_col = db.saved_accounts
@@ -21,7 +22,9 @@ except Exception as e:
 API_BASE = 'https://api.mail.gw'
 ADMIN_USER = os.environ.get('ADMIN_USER', 'cyber')
 ADMIN_PASS = os.environ.get('ADMIN_PASS', '1948s')
-REQ_TIMEOUT = 10  # Stop Gunicorn from freezing if mail.gw is slow
+
+# Stop Gunicorn from freezing if mail.gw is slow
+REQ_TIMEOUT = 10  
 
 def is_admin():
     return session.get('logged_in') is True
