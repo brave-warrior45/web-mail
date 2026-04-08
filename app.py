@@ -7,24 +7,22 @@ from pymongo import MongoClient
 
 app = Flask(__name__)
 # Secret key for secure login sessions
-app.secret_key = os.environ.get('SECRET_KEY', 'default_cyber_secret_123')
+app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
 
 # MongoDB Connection
-MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/').strip('"').strip("'")
+MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
 try:
-    # 5-second timeout to prevent server deployment freezes
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    client = MongoClient(MONGO_URI)
     db = client.tempmail_db
     accounts_col = db.saved_accounts
 except Exception as e:
-    print(f"CRITICAL MongoDB connection error: {e}")
+    print(f"MongoDB connection error: {e}")
 
 API_BASE = 'https://api.mail.gw'
+
+# Admin Credentials (Fetched from Render Environment)
 ADMIN_USER = os.environ.get('ADMIN_USER', 'cyber')
 ADMIN_PASS = os.environ.get('ADMIN_PASS', '1948s')
-
-# Stop Gunicorn from freezing if mail.gw is slow
-REQ_TIMEOUT = 10  
 
 def is_admin():
     return session.get('logged_in') is True
@@ -60,13 +58,14 @@ def auth_status():
 @app.route('/api/db/accounts', methods=['GET'])
 def get_accounts():
     if not is_admin(): return jsonify({"error": "Unauthorized"}), 401
-    accounts = list(accounts_col.find({}, {'_id': 0})) 
+    accounts = list(accounts_col.find({}, {'_id': 0})) # Exclude raw MongoDB ObjectID
     return jsonify(accounts)
 
 @app.route('/api/db/accounts', methods=['POST'])
 def save_account():
     if not is_admin(): return jsonify({"error": "Unauthorized"}), 401
     data = request.json
+    # Only insert if it doesn't already exist
     if not accounts_col.find_one({"email": data.get('email')}):
         accounts_col.insert_one({
             "email": data.get('email'),
@@ -88,7 +87,7 @@ def delete_account():
 def generate():
     if not is_admin(): return jsonify({"error": "Unauthorized"}), 401
     try:
-        dom_res = requests.get(f"{API_BASE}/domains", timeout=REQ_TIMEOUT)
+        dom_res = requests.get(f"{API_BASE}/domains")
         dom_res.raise_for_status()
         domain = dom_res.json().get('hydra:member', [])[0]['domain']
 
@@ -97,9 +96,9 @@ def generate():
         email = f"{username}@{domain}"
         
         acc_payload = {"address": email, "password": password}
-        requests.post(f"{API_BASE}/accounts", json=acc_payload, timeout=REQ_TIMEOUT).raise_for_status()
+        requests.post(f"{API_BASE}/accounts", json=acc_payload).raise_for_status()
 
-        tok_res = requests.post(f"{API_BASE}/token", json=acc_payload, timeout=REQ_TIMEOUT)
+        tok_res = requests.post(f"{API_BASE}/token", json=acc_payload)
         tok_res.raise_for_status()
         
         return jsonify({"email": email, "token": tok_res.json()['token'], "password": password})
@@ -112,7 +111,7 @@ def api_login():
     data = request.json
     try:
         acc_payload = {"address": data.get('address'), "password": data.get('password')}
-        tok_res = requests.post(f"{API_BASE}/token", json=acc_payload, timeout=REQ_TIMEOUT)
+        tok_res = requests.post(f"{API_BASE}/token", json=acc_payload)
         tok_res.raise_for_status()
         return jsonify({"email": data.get('address'), "token": tok_res.json()['token'], "password": data.get('password')})
     except Exception as e:
@@ -123,7 +122,7 @@ def get_messages():
     if not is_admin(): return jsonify({"error": "Unauthorized"}), 401
     token = request.args.get('token')
     try:
-        res = requests.get(f"{API_BASE}/messages", headers={"Authorization": f"Bearer {token}"}, timeout=REQ_TIMEOUT)
+        res = requests.get(f"{API_BASE}/messages", headers={"Authorization": f"Bearer {token}"})
         res.raise_for_status()
         return jsonify([
             {"id": msg['id'], "from": msg.get('from', {}).get('address', 'Unknown') if isinstance(msg.get('from'), dict) else msg.get('from', 'Unknown'), 
@@ -139,7 +138,7 @@ def read_message():
     token = request.args.get('token')
     msg_id = request.args.get('id')
     try:
-        res = requests.get(f"{API_BASE}/messages/{msg_id}", headers={"Authorization": f"Bearer {token}"}, timeout=REQ_TIMEOUT)
+        res = requests.get(f"{API_BASE}/messages/{msg_id}", headers={"Authorization": f"Bearer {token}"})
         res.raise_for_status()
         msg = res.json()
         html_body = msg.get('html', [''])[0] if isinstance(msg.get('html'), list) and msg.get('html') else msg.get('html', '')
