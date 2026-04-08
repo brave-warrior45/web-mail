@@ -14,12 +14,11 @@ def generate_random_string(length=12):
 def index():
     return render_template('index.html')
 
-# --- Proxy Routes for the NEW API ---
+# --- Proxy Routes for the API ---
 
 @app.route('/api/generate')
 def generate():
     try:
-        # 1. Get available active domains
         dom_res = requests.get(f"{API_BASE}/domains")
         dom_res.raise_for_status()
         domains = dom_res.json().get('hydra:member', [])
@@ -27,7 +26,6 @@ def generate():
             return jsonify({"error": "No domains available"}), 500
         domain = domains[0]['domain']
 
-        # 2. Generate random credentials and create account
         username = generate_random_string(12)
         password = generate_random_string(16)
         email = f"{username}@{domain}"
@@ -36,17 +34,34 @@ def generate():
         acc_res = requests.post(f"{API_BASE}/accounts", json=acc_payload)
         acc_res.raise_for_status()
 
-        # 3. Authenticate to get the JWT access token
         tok_res = requests.post(f"{API_BASE}/token", json=acc_payload)
         tok_res.raise_for_status()
         token = tok_res.json()['token']
 
+        # Now returning the password so the user can save it
         return jsonify({
             "email": email,
-            "token": token
+            "token": token,
+            "password": password
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    address = data.get('address')
+    password = data.get('password')
+    
+    try:
+        acc_payload = {"address": address, "password": password}
+        tok_res = requests.post(f"{API_BASE}/token", json=acc_payload)
+        tok_res.raise_for_status()
+        token = tok_res.json()['token']
+        
+        return jsonify({"email": address, "token": token, "password": password})
+    except Exception as e:
+        return jsonify({"error": "Invalid email/password or account expired."}), 401
 
 @app.route('/api/messages')
 def get_messages():
@@ -60,7 +75,6 @@ def get_messages():
         res.raise_for_status()
         messages = res.json().get('hydra:member', [])
         
-        # Format for the frontend UI
         formatted_msgs = []
         for msg in messages:
             sender = msg.get('from', {})
@@ -88,8 +102,6 @@ def read_message():
         
         sender = msg.get('from', {})
         sender_address = sender.get('address', 'Unknown') if isinstance(sender, dict) else sender
-        
-        # mail.gw stores HTML body in a list
         html_body = msg.get('html', [''])[0] if isinstance(msg.get('html'), list) and msg.get('html') else msg.get('html', '')
 
         return jsonify({
