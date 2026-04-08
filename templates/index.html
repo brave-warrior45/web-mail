@@ -24,7 +24,7 @@
         <p>Your temporary, always-available email address:</p>
         
         <div>
-            <input type="text" id="email-address" readonly placeholder="Generating email...">
+            <input type="text" id="email-address" readonly placeholder="Generating secure email...">
         </div>
         
         <button onclick="fetchEmails()">Refresh Inbox</button>
@@ -40,43 +40,43 @@
 
     <script>
         let currentEmail = "";
-        let currentLogin = "";
-        let currentDomain = "";
+        let currentToken = "";
         let refreshInterval;
 
-        // Generates a new random email via our backend proxy
+        // Automatically fetches a new account token via our Python backend
         async function generateEmail() {
-            document.getElementById('email-address').value = "Generating...";
+            document.getElementById('email-address').value = "Connecting to mail server...";
             document.getElementById('messages-list').innerHTML = "Waiting for incoming emails...";
             document.getElementById('message-content').style.display = "none";
 
             try {
                 const response = await fetch('/api/generate');
                 const data = await response.json();
-                currentEmail = data[0];
+                
+                if (data.error) throw new Error(data.error);
+
+                currentEmail = data.email;
+                currentToken = data.token;
                 document.getElementById('email-address').value = currentEmail;
 
-                const parts = currentEmail.split('@');
-                currentLogin = parts[0];
-                currentDomain = parts[1];
-
-                // Sets up the "Always Available" auto-refresh feature
+                // Start checking inbox every 10 seconds
                 if (refreshInterval) clearInterval(refreshInterval);
-                refreshInterval = setInterval(fetchEmails, 10000); // Check every 10 seconds
+                refreshInterval = setInterval(fetchEmails, 10000); 
                 fetchEmails();
             } catch (error) {
-                console.error("Error generating email:", error);
+                console.error("Generation Error:", error);
                 document.getElementById('email-address').value = "Error generating email. Try again.";
             }
         }
 
-        // Fetches the inbox via our backend proxy
         async function fetchEmails() {
-            if (!currentLogin || !currentDomain) return;
+            if (!currentToken) return;
             try {
-                const response = await fetch(`/api/messages?login=${currentLogin}&domain=${currentDomain}`);
+                const response = await fetch(`/api/messages?token=${currentToken}`);
                 const messages = await response.json();
                 
+                if (messages.error) throw new Error(messages.error);
+
                 const list = document.getElementById('messages-list');
                 if (messages.length === 0) {
                     list.innerHTML = "No new messages. Waiting for OTP...";
@@ -88,28 +88,32 @@
                     const div = document.createElement('div');
                     div.className = 'message';
                     div.innerHTML = `<strong>From:</strong> ${msg.from} <br> <strong>Subject:</strong> ${msg.subject}`;
-                    div.onclick = () => readMessage(msg.id); // Click to open email
+                    div.onclick = () => readMessage(msg.id);
                     list.appendChild(div);
                 });
             } catch (error) {
-                console.error("Error fetching emails:", error);
+                console.error("Fetch Error:", error);
             }
         }
 
-        // Opens and reads a specific email via our backend proxy
         async function readMessage(id) {
             try {
-                const response = await fetch(`/api/read?login=${currentLogin}&domain=${currentDomain}&id=${id}`);
+                const response = await fetch(`/api/read?token=${currentToken}&id=${id}`);
                 const msg = await response.json();
                 
+                if (msg.error) throw new Error(msg.error);
+
                 const contentDiv = document.getElementById('message-content');
                 contentDiv.style.display = "block";
                 
-                // Display HTML body if available, otherwise fallback to plain text
+                // Format the timestamp nicely
+                const dateObj = new Date(msg.date);
+                const timeString = dateObj.toLocaleString();
+
                 const bodyContent = msg.htmlBody ? msg.htmlBody : `<pre>${msg.textBody}</pre>`;
-                contentDiv.innerHTML = `<h4>${msg.subject}</h4><p><b>From:</b> ${msg.from}</p><p><b>Date:</b> ${msg.date}</p><hr>${bodyContent}`;
+                contentDiv.innerHTML = `<h4>${msg.subject}</h4><p><b>From:</b> ${msg.from}</p><p><b>Received:</b> ${timeString}</p><hr>${bodyContent}`;
             } catch (error) {
-                console.error("Error reading message:", error);
+                console.error("Read Error:", error);
             }
         }
 
