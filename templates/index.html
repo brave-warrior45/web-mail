@@ -136,8 +136,13 @@
         }
 
         async function adminLogout() {
-            await fetch('/api/auth/logout', { method: 'POST' });
-            location.reload();
+            // Stop polling the API so the server can rest
+            if (refreshInterval) clearInterval(refreshInterval);
+            try {
+                await fetch('/api/auth/logout', { method: 'POST', cache: 'no-store' });
+            } catch(e) {}
+            // Use replace() instead of reload() to completely wipe the current browser state
+            window.location.replace('/');
         }
 
         // --- Main App Logic ---
